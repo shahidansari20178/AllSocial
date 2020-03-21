@@ -4,7 +4,6 @@ admin.initializeApp(functions.config().firebase);
 let db = admin.database();
 const socialCollection = 'AllSocialData';
 const userCollection = 'users';
-let socialId = undefined;
 const is_url = (url) => {
     let regexp = /^(?:(?:https?|ftp):\/\/)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/\S*)?$/;
     return regexp.test(url);
@@ -22,54 +21,51 @@ const isBase64 = (str) => {
 exports.sendPushNotificationOnCreate = functions.database
     .ref(`${socialCollection}/{socialID}`)
     .onCreate(event => {
-        console.log('---event',event)
-        const info = event._data
         let userRef = db.ref(userCollection);
         userRef.once('value',(data)=> {
-            sendNotification(data.val().notification_token,info)
+            sendNotification(data.val().notification_token,event._data)
         })
 
     });
 
 const sendNotification = (token,info) => {
-    console.log('---------info',info)
-    let payload = {
-        notification: {
-            title: info.title,
-            body: info.socialSiteUrl
-        }
-    };
-    // let socialRef = db.ref(`${socialCollection}/${socialId}`);
-    // socialRef.once('value',(data)=> {
-    //     payload.notification.title = data.val().title;
-    //     payload.notification.body= data.val().socialSiteUrl;
-    // });
-    // console.log('payload',payload,'-------',socialId)
-    admin
-        .messaging()
-        .sendToDevice(token, payload)
-        // eslint-disable-next-line promise/always-return
-        .then(function(response) {
-            console.log("Notification sent successfully:", response);
-        })
-        .catch((error) => {
-            console.log("Notification sent failed:", error);
-        });
+    console.log('-----payload',info)
+    if(!info && !token){
+        let payload = {
+            notification: {
+                title: info.title,
+                body: info.socialSiteUrl
+            }
+        };
+        //console.log('-----payload',payload)
+        admin
+            .messaging()
+            .sendToDevice(token, payload)
+            // eslint-disable-next-line promise/always-return
+            .then(function(response) {
+                console.log("Notification sent successfully:", response);
+            })
+            .catch((error) => {
+                console.log("Notification sent failed:", error);
+            });
+    }
 };
 
 exports.sendPushNotificationOnUpdate = functions.database
     .ref(`${socialCollection}/{socialID}`)
     .onUpdate(event => {
-        const info = event._data
-        console.log('---event',event)
+        //console.log('----update',event._data)
+        //console.log('----val',event.val())
+        //const after = event.data.val()
+        //console.log('----update',event.after._data);
         let userRef = db.ref(userCollection);
         userRef.once('value',(data)=> {
             let userList = Object.values(data.val());
-            console.log('userList------',userList);
+          //  console.log('userList------',userList);
             // eslint-disable-next-line array-callback-return
             userList.map((item) => {
-                console.log('item------',item);
-                sendNotification(item.notification_token,info)
+                //console.log('item------',item);
+                sendNotification(item.notification_token,event.after._data)
             })
         })
     });
